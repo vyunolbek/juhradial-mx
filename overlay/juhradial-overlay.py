@@ -732,6 +732,10 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         by half a pixel, offsetting the drawn ring from where hover is tested.
         """
         half = (self._get_outer_radius() + self._get_shadow_offset() + self._get_submenu_extend()) * scale
+        # The bubble ring's label pills reach well past the submenu fan; give
+        # the window the room they need or the circular KDE mask shaves them
+        if overlay_actions.BUBBLE_MODE:
+            half += 90 * scale
         return int(round(half)) * 2
 
     def _get_submenu_item_radius(self):

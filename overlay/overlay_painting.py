@@ -706,23 +706,19 @@ class RadialMenuPaintingMixin:
             p.save()
             p.setOpacity(p.opacity() * 0.38)
 
-        # Drop shadow - three stacked translucent ellipses stand in for
-        # NotLogi's blurred 0 6px 18px box-shadow
+        # Drop shadow - two soft stacked translucent ellipses; a heavier
+        # stack read as a dark rim on the lower half of every bubble
         if not dimmed:
-            for dx, dy, a in ((0, 3, 60), (0, 5, 40), (0, 7, 22)):
+            for dx, dy, a in ((0, 2, 45), (0, 4, 28)):
                 p.setBrush(QBrush(QColor(0, 0, 0, a)))
                 p.setPen(Qt.PenStyle.NoPen)
                 p.drawEllipse(QPointF(bx + dx, by + dy), r, r)
 
-        # A folder wears a double ring on its bubble (.bub.folder)
+        # A folder wears a single thin accent ring on its bubble
         if folder and not folder_open:
-            ring1 = QColor(overlay_actions.COLORS["surface1"])
-            ring1.setAlpha(235)
             p.setBrush(Qt.BrushStyle.NoBrush)
-            p.setPen(QPen(ring1, 3))
-            p.drawEllipse(QPointF(bx, by), r + 4, r + 4)
             p.setPen(QPen(QColor(overlay_actions.COLORS.get("accent", "#00d4ff")), 2.5))
-            p.drawEllipse(QPointF(bx, by), r + 7.5, r + 7.5)
+            p.drawEllipse(QPointF(bx, by), r + 4, r + 4)
 
         # The bubble: the palette's text colour inverted against the desktop,
         # filling with the accent as it is hovered; the icon runs the other way
@@ -778,7 +774,7 @@ class RadialMenuPaintingMixin:
         font = QFont("Sans", 10)
         font.setWeight(QFont.Weight.DemiBold)
         metrics = QFontMetrics(font)
-        elided = metrics.elidedText(text, Qt.TextElideMode.ElideRight, 120)
+        elided = metrics.elidedText(text, Qt.TextElideMode.ElideRight, 170)
         tw = metrics.horizontalAdvance(elided)
         w = tw + 30.0
         hgt = metrics.height() + 16.0
