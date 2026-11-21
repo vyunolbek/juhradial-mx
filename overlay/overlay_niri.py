@@ -109,6 +109,7 @@ def create_niri_menu(base, host):
             overlay_actions.COLORS = overlay_actions.load_theme()
             overlay_actions.load_radial_image()
             overlay_actions.MINIMAL_MODE = overlay_actions.load_minimal_mode()
+            overlay_actions.BUBBLE_MODE = overlay_actions.load_bubble_mode()
             overlay_actions.ICON_STYLE = overlay_actions.load_icon_style()
             self._apply_ring_scale({"height": height})
             half = self.win_px // 2

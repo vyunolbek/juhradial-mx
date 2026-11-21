@@ -115,9 +115,21 @@ class RadialMenuPaintingMixin:
             p.scale(scale, scale)
             p.translate(-cx, -cy)
 
-        minimal = overlay_actions.MINIMAL_MODE
+        minimal = overlay_actions.MINIMAL_MODE or overlay_actions.BUBBLE_MODE
 
-        if overlay_actions.RADIAL_IMAGE is not None:
+        if overlay_actions.BUBBLE_MODE:
+            # === NotLogi bubble ring ===
+            # A circle of solid icon bubbles; the hovered one fills with the
+            # accent, pops, and names itself on a pill (see _draw_bubble_icon)
+            for i in range(8):
+                ent = self._entrance_t(i)
+                if ent <= 0:
+                    continue
+                p.save()
+                p.setOpacity(p.opacity() * ent)
+                self._draw_bubble_icon(p, cx, cy, i, ent)
+                p.restore()
+        elif overlay_actions.RADIAL_IMAGE is not None:
             # === 3D Image Mode ===
             if not minimal:
                 # Draw the pre-rendered 3D radial wheel image centered
@@ -641,6 +653,153 @@ class RadialMenuPaintingMixin:
         if self._draw_family_glyph(p, icon_x, icon_y, index, int(icon_radius * 1.15), icon_color):
             return
         self._draw_action_icon(p, icon_x, icon_y, action[4], icon_radius * 0.65, icon_color)
+
+    # ------------------------------------------------------------------
+    # NotLogi-style bubble ring (radial.bubble_style): the design ported
+    # from NotLogi's action ring - a circle of solid icon bubbles, the
+    # hovered one fills with the accent, scales up and shows a label pill
+    # joined by a nub; folders wear a double ring and fan their actions out
+    # the same way; the centre is a small close hub instead of text.
+    # ------------------------------------------------------------------
+    BUBBLE_R = 28.0      # NotLogi's .bub: a 56px circle
+    BUBBLE_POP = 0.14    # .bub.on scale(1.14)
+    BUBBLE_NUB = 18.0    # the label nub square
+
+    @staticmethod
+    def _bubble_mix(c1, c2, t):
+        """Linear blend between two colours (either may be a QColor or a
+        palette hex string), used for the hover fill of a bubble."""
+        c1, c2 = QColor(c1), QColor(c2)
+        return QColor(
+            int(c1.red() + (c2.red() - c1.red()) * t),
+            int(c1.green() + (c2.green() - c1.green()) * t),
+            int(c1.blue() + (c2.blue() - c1.blue()) * t),
+        )
+
+    def _bubble_center(self, index, cx, cy, lift=0.0):
+        """Centre of slice `index`'s bubble; hover lifts it out a hair."""
+        ang = math.radians(index * 45 - 90)
+        r = (overlay_actions.RADIAL_PARAMS or {}).get("icon_radius", ICON_ZONE_RADIUS)
+        return (
+            cx + (r + lift) * math.cos(ang),
+            cy + (r + lift) * math.sin(ang),
+            ang,
+        )
+
+    def _draw_bubble_icon(self, p, cx, cy, index, ent=1.0):
+        h = getattr(self, 'slice_highlights', [0.0] * 8)[index]
+        h = self._ease_out_cubic(h)
+        action = overlay_actions.ACTIONS[index]
+        folder = bool(action[5])
+        folder_open = self.submenu_active and self.submenu_slice == index
+        dimmed = self.submenu_active and self.submenu_slice != index
+
+        # Entrance: each bubble pops in from 0.4 with a hair of overshoot
+        pop = 0.4 + 0.6 * self._ease_out_back(ent, overshoot=1.25)
+
+        icon_scale = (overlay_actions.RADIAL_PARAMS or {}).get("icon_scale", 1.0)
+        bx, by, ang = self._bubble_center(index, cx, cy, 3.0 * h)
+        r = self.BUBBLE_R * icon_scale * (1.0 + self.BUBBLE_POP * h) * pop
+
+        if dimmed:
+            # an open folder keeps the ring in view, dimmed (.bub.parent)
+            p.save()
+            p.setOpacity(p.opacity() * 0.38)
+
+        # Drop shadow - three stacked translucent ellipses stand in for
+        # NotLogi's blurred 0 6px 18px box-shadow
+        if not dimmed:
+            for dx, dy, a in ((0, 3, 60), (0, 5, 40), (0, 7, 22)):
+                p.setBrush(QBrush(QColor(0, 0, 0, a)))
+                p.setPen(Qt.PenStyle.NoPen)
+                p.drawEllipse(QPointF(bx + dx, by + dy), r, r)
+
+        # A folder wears a double ring on its bubble (.bub.folder)
+        if folder and not folder_open:
+            ring1 = QColor(overlay_actions.COLORS["surface1"])
+            ring1.setAlpha(235)
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.setPen(QPen(ring1, 3))
+            p.drawEllipse(QPointF(bx, by), r + 4, r + 4)
+            p.setPen(QPen(QColor(overlay_actions.COLORS.get("accent", "#00d4ff")), 2.5))
+            p.drawEllipse(QPointF(bx, by), r + 7.5, r + 7.5)
+
+        # The bubble: the palette's text colour inverted against the desktop,
+        # filling with the accent as it is hovered; the icon runs the other way
+        hl = max(h, 1.0 if folder_open else 0.0)
+        fill = self._bubble_mix(
+            overlay_actions.COLORS["text"],
+            overlay_actions.COLORS.get("accent", "#00d4ff"),
+            hl,
+        )
+        fg = self._bubble_mix(
+            overlay_actions.COLORS["base"], QColor(255, 255, 255), hl
+        )
+        p.setBrush(QBrush(fill))
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawEllipse(QPointF(bx, by), r, r)
+
+        if self._draw_family_glyph(p, bx, by, index, int(r * 1.15), fg):
+            pass
+        else:
+            self._draw_action_icon(p, bx, by, action[4], r * 0.72, fg)
+
+        # Only the chosen action says its name (.lab)
+        if h > 0.03 and not folder_open:
+            label = action[0] + (" ›" if folder else "")
+            self._bubble_label(p, bx, by, ang, r, label, h)
+
+        if dimmed:
+            p.restore()
+
+    def _bubble_label(self, p, bx, by, ang, r, text, alpha):
+        """NotLogi's label: a nub pointing out of the bubble at a pill that
+        names the hovered action. The pill stays horizontal, never rotated."""
+        if alpha <= 0.03 or not text:
+            return
+        p.save()
+        p.setOpacity(p.opacity() * min(1.0, alpha))
+        accent = QColor(overlay_actions.COLORS.get("accent", "#00d4ff"))
+        ux, uy = math.cos(ang), math.sin(ang)
+
+        # the nub: a small square standing on its corner, bubble-coloured
+        p.save()
+        p.translate(bx + ux * (r + 8), by + uy * (r + 8))
+        p.rotate(math.degrees(ang) + 45)
+        p.setBrush(QBrush(accent))
+        p.setPen(Qt.PenStyle.NoPen)
+        half = self.BUBBLE_NUB / 2
+        p.drawRoundedRect(
+            QRectF(-half, -half, self.BUBBLE_NUB, self.BUBBLE_NUB), 4.0, 9.0
+        )
+        p.restore()
+
+        # the pill: a card with an accent ring and the action's name
+        font = QFont("Sans", 10)
+        font.setWeight(QFont.Weight.DemiBold)
+        metrics = QFontMetrics(font)
+        elided = metrics.elidedText(text, Qt.TextElideMode.ElideRight, 120)
+        tw = metrics.horizontalAdvance(elided)
+        w = tw + 30.0
+        hgt = metrics.height() + 16.0
+        cxp = bx + ux * (r + 20.0 + w / 2)
+        cyp = by + uy * (r + 20.0 + w / 2)
+        rect = QRectF(cxp - w / 2, cyp - hgt / 2, w, hgt)
+
+        p.setBrush(QBrush(accent))
+        p.setPen(QPen(accent, 2))
+        p.drawRoundedRect(rect.adjusted(-2, -2, 2, 2), 9.0, 9.0)
+        card = QColor(overlay_actions.COLORS["surface1"])
+        card.setAlpha(248)
+        p.setBrush(QBrush(card))
+        brd = QColor(overlay_actions.COLORS["surface2"])
+        brd.setAlpha(170)
+        p.setPen(QPen(brd, 1))
+        p.drawRoundedRect(rect, 7.0, 7.0)
+        p.setFont(font)
+        p.setPen(QPen(QColor(overlay_actions.COLORS["text"])))
+        p.drawText(rect, Qt.AlignmentFlag.AlignCenter, elided)
+        p.restore()
 
     def _draw_slice_button(self, p, cx, cy, index, icon_radius, h):
         """Draw the icon style's slice button for slice `index` (Line and
@@ -1248,6 +1407,53 @@ class RadialMenuPaintingMixin:
             )
 
             # Background
+            icon_name = item[3]  # e.g. "claude", "os_linux", or an icon path
+            if overlay_actions.BUBBLE_MODE:
+                # NotLogi fan: solid bubbles that fill with the accent when
+                # hovered and name themselves on the same label pill
+                hl = 1.0 if is_highlighted else 0.0
+                bub_r = scaled_radius * (1.0 + self.BUBBLE_POP * hl)
+                if item_t > 0.05:
+                    for dx, dy, a in ((0, 3, 55), (0, 5, 38), (0, 7, 20)):
+                        p.setBrush(QBrush(QColor(0, 0, 0, a)))
+                        p.setPen(Qt.PenStyle.NoPen)
+                        p.drawEllipse(QPointF(item_x + dx, item_y + dy), bub_r, bub_r)
+                fill = self._bubble_mix(
+                    overlay_actions.COLORS["text"],
+                    overlay_actions.COLORS.get("accent", "#00d4ff"),
+                    hl,
+                )
+                fg = self._bubble_mix(
+                    overlay_actions.COLORS["base"], QColor(255, 255, 255), hl
+                )
+                p.setBrush(QBrush(fill))
+                p.setPen(Qt.PenStyle.NoPen)
+                p.drawEllipse(QPointF(item_x, item_y), bub_r, bub_r)
+                overlay_actions.load_user_icon(icon_name)
+                bub_icons = {
+                    **overlay_actions.AI_ICONS,
+                    **overlay_actions.OS_ICONS,
+                    **overlay_actions.USER_ICONS,
+                }
+                if icon_name in bub_icons:
+                    disc = icon_name in overlay_actions.DISC_OS_ICONS
+                    icon_size = bub_r * (2.0 if disc else 1.4)
+                    icon_rect = QRectF(
+                        item_x - icon_size / 2,
+                        item_y - icon_size / 2,
+                        icon_size,
+                        icon_size,
+                    )
+                    icon = bub_icons[icon_name]
+                    if icon_name in overlay_actions.MONO_OS_ICONS:
+                        icon = overlay_actions.tinted_icon(icon_name, icon, fg)
+                    p.drawPixmap(icon_rect.toRect(), icon)
+                else:
+                    self._draw_icon(p, item_x, item_y, icon_name, bub_r * 0.7, fg)
+                if is_highlighted:
+                    self._bubble_label(p, item_x, item_y, item_angle, bub_r, item[0], 1.0)
+                p.restore()
+                continue
             if is_highlighted:
                 bg = QColor(overlay_actions.COLORS["surface2"])
                 bg.setAlpha(255)
@@ -1319,6 +1525,24 @@ class RadialMenuPaintingMixin:
             p.translate(cx, cy)
             p.scale(scale, scale)
             p.translate(-cx, -cy)
+
+        if overlay_actions.BUBBLE_MODE and not center_bg:
+            # NotLogi hub: a small close button instead of the text centre -
+            # the hovered action's name lives on its label pill now
+            hub_r = min(center_radius, 20.0 * self._get_ui_scale())
+            hub = QColor(overlay_actions.COLORS["surface1"])
+            hub.setAlpha(255)
+            p.setBrush(QBrush(hub))
+            p.setPen(QPen(QColor(overlay_actions.COLORS["surface2"]), 1))
+            p.drawEllipse(QPointF(cx, cy), hub_r, hub_r)
+            xcol = QColor(overlay_actions.COLORS["text"])
+            p.setPen(QPen(xcol, 2.2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+            m = hub_r * 0.32
+            p.drawLine(QPointF(cx - m, cy - m), QPointF(cx + m, cy + m))
+            p.drawLine(QPointF(cx - m, cy + m), QPointF(cx + m, cy - m))
+            if pulse < 1.0:
+                p.restore()
+            return
 
         if center_bg:
             # 3D themed center zone

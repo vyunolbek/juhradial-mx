@@ -402,6 +402,7 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
         overlay_actions.COLORS = overlay_actions.load_theme()
         overlay_actions.load_radial_image()
         overlay_actions.MINIMAL_MODE = overlay_actions.load_minimal_mode()
+        overlay_actions.BUBBLE_MODE = overlay_actions.load_bubble_mode()
         overlay_actions.ICON_STYLE = overlay_actions.load_icon_style()
 
         # If already in toggle mode and menu is visible, this is a second tap to close
@@ -866,7 +867,9 @@ class RadialMenu(RadialMenuPaintingMixin, QWidget):
             rects = []
             # Minimal mode floats the icons without a disc: a frosted disc
             # behind them reads as a stray circle, so nothing is frosted.
-            if on and not overlay_actions.MINIMAL_MODE:
+            # Minimal and bubble modes float the icons without a disc: a
+            # frosted disc behind them reads as a stray circle.
+            if on and not overlay_actions.MINIMAL_MODE and not overlay_actions.BUBBLE_MODE:
                 outer = (overlay_actions.RADIAL_PARAMS or {}).get("ring_outer", MENU_RADIUS - 6)
                 rects = overlay_blur.ring_blur_rects(
                     self.win_px, outer * self.ring_scale, self.devicePixelRatioF())

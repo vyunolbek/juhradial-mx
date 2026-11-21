@@ -963,6 +963,26 @@ ACTIONS = load_actions_from_config()
 # Minimal mode flag - hides slice/wedge graphics, shows only floating icons
 MINIMAL_MODE = False
 
+# NotLogi-style bubble ring flag - floating icon bubbles with a label pill for
+# the hovered action, a hub instead of a text centre, folders fanned out
+BUBBLE_MODE = False
+
+
+def load_bubble_mode():
+    """Read radial.bubble_style from config.json. Returns bool."""
+    import json
+    from pathlib import Path
+
+    config_path = Path.home() / ".config" / "juhradial" / "config.json"
+    try:
+        if config_path.exists():
+            with open(config_path, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+            return bool(cfg.get("radial", {}).get("bubble_style", False))
+    except (OSError, ValueError, KeyError):
+        pass
+    return False
+
 
 def load_minimal_mode():
     """Read radial.minimal_mode from config.json. Returns bool."""
