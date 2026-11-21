@@ -770,7 +770,11 @@ class RadialMenuPaintingMixin:
         )
         p.restore()
 
-        # the pill: a card with an accent ring and the action's name
+        # the pill: a card with an accent ring and the action's name.
+        # Its nearest edge keeps a constant gap past the nub whatever the
+        # slice's angle: a horizontal pill centred on the ray hugs cardinal
+        # bubbles and swings far from diagonal ones, so the centre distance
+        # is solved so that the closest point of the rect sits at r + gap.
         font = QFont("Sans", 10)
         font.setWeight(QFont.Weight.DemiBold)
         metrics = QFontMetrics(font)
@@ -778,8 +782,20 @@ class RadialMenuPaintingMixin:
         tw = metrics.horizontalAdvance(elided)
         w = tw + 30.0
         hgt = metrics.height() + 16.0
-        cxp = bx + ux * (r + 20.0 + w / 2)
-        cyp = by + uy * (r + 20.0 + w / 2)
+        gap = 24.0
+        lo, hi = r + gap, r + gap + w + hgt
+        for _ in range(12):
+            mid = (lo + hi) / 2
+            px, py = bx + ux * mid, by + uy * mid
+            qx = max(px - w / 2, min(bx, px + w / 2))
+            qy = max(py - hgt / 2, min(by, py + hgt / 2))
+            if math.hypot(bx - qx, by - qy) < r + gap:
+                lo = mid
+            else:
+                hi = mid
+        d = (lo + hi) / 2
+        cxp = bx + ux * d
+        cyp = by + uy * d
         rect = QRectF(cxp - w / 2, cyp - hgt / 2, w, hgt)
 
         p.setBrush(QBrush(accent))
