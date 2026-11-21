@@ -663,7 +663,6 @@ class RadialMenuPaintingMixin:
     # ------------------------------------------------------------------
     BUBBLE_R = 28.0      # NotLogi's .bub: a 56px circle
     BUBBLE_POP = 0.14    # .bub.on scale(1.14)
-    BUBBLE_NUB = 18.0    # the label nub square
 
     @staticmethod
     def _bubble_mix(c1, c2, t):
@@ -757,18 +756,6 @@ class RadialMenuPaintingMixin:
         p.setOpacity(p.opacity() * min(1.0, alpha))
         accent = QColor(overlay_actions.COLORS.get("accent", "#00d4ff"))
         ux, uy = math.cos(ang), math.sin(ang)
-
-        # the nub: a small square standing on its corner, bubble-coloured
-        p.save()
-        p.translate(bx + ux * (r + 8), by + uy * (r + 8))
-        p.rotate(math.degrees(ang) + 45)
-        p.setBrush(QBrush(accent))
-        p.setPen(Qt.PenStyle.NoPen)
-        half = self.BUBBLE_NUB / 2
-        p.drawRoundedRect(
-            QRectF(-half, -half, self.BUBBLE_NUB, self.BUBBLE_NUB), 4.0, 9.0
-        )
-        p.restore()
 
         # the pill: a card with an accent ring and the action's name.
         # Its nearest edge keeps a constant gap past the nub whatever the
