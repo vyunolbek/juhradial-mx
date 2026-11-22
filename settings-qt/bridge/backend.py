@@ -878,7 +878,7 @@ DEFAULT_CONFIG = {
             "check_updates": True},
     # wheel "" is the overlay no-op (falsy in _config_wheel_key), so a merged
     # default never overrides the theme-derived wheel for existing users.
-    "radial": {"minimal_mode": False, "wheel": "", "click_outside_closes": True},
+    "radial": {"minimal_mode": False, "bubble_style": False, "wheel": "", "click_outside_closes": True},
     "gaming": {"enabled": False, "suppress_overlay": True, "active_dpi_profile": 1,
                "dpi_profiles": [{"name": "Precision", "dpi": 400, "color": "blue"},
                                 {"name": "Normal", "dpi": 1000, "color": "green"},
@@ -5690,6 +5690,9 @@ class Backend(QObject):
 
     @pyqtSlot(str)
     def setWheelSkin(self, key):
+        # Choosing a wheel skin is choosing the ring's look: leave the
+        # NotLogi bubble style, or the picker silently changes nothing
+        self.set("radial.bubble_style", False)
         if key == "classic-light":
             self.set("radial.wheel", "none")
             self.set("theme", self.LIGHT_CLASSIC)

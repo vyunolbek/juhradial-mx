@@ -26,9 +26,10 @@ Item {
     function refreshStatus() { autostart = Backend.autostartStatus(); services = Backend.serviceStatus() }
     // The header's Simplified switch writes the same key.
     property bool minimal: !!Backend.get("radial.minimal_mode", false)
+    property bool bubble: !!Backend.get("radial.bubble_style", false)
     Connections {
         target: Backend
-        function onConfigChanged() { page.autostart = Backend.autostartStatus(); page.minimal = !!Backend.get("radial.minimal_mode", false) }
+        function onConfigChanged() { page.autostart = Backend.autostartStatus(); page.minimal = !!Backend.get("radial.minimal_mode", false); page.bubble = !!Backend.get("radial.bubble_style", false) }
         function onAvailabilityChanged() { page.services = Backend.serviceStatus() }
     }
     readonly property string _accent: Theme.accent.toString().slice(1)
@@ -238,7 +239,15 @@ Item {
                         desc: qsTr("Hide the ring and show only the action icons")
                         Toggle {
                             checked: page.minimal
-                            onToggled: (v) => { Backend.setLocal("radial.minimal_mode", v); checked = Qt.binding(() => page.minimal) }
+                            onToggled: (v) => { Backend.setLocal("radial.minimal_mode", v); if (v) Backend.setLocal("radial.bubble_style", false); checked = Qt.binding(() => page.minimal) }
+                        }
+                    }
+                    SettingRow {
+                        label: qsTr("Bubble ring (NotLogi style)")
+                        desc: qsTr("Solid icon bubbles; the hovered one fills with the accent and names itself on a pill")
+                        Toggle {
+                            checked: page.bubble
+                            onToggled: (v) => { Backend.setLocal("radial.bubble_style", v); if (v) Backend.setLocal("radial.minimal_mode", false); checked = Qt.binding(() => page.bubble) }
                         }
                     }
                     SettingRow {
