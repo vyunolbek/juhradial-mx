@@ -739,66 +739,9 @@ class RadialMenuPaintingMixin:
         else:
             self._draw_action_icon(p, bx, by, action[4], r * 0.72, fg)
 
-        # Only the chosen action says its name (.lab)
-        if h > 0.03 and not folder_open:
-            label = action[0] + (" ›" if folder else "")
-            self._bubble_label(p, bx, by, ang, r, label, h)
-
         if dimmed:
             p.restore()
 
-    def _bubble_label(self, p, bx, by, ang, r, text, alpha):
-        """NotLogi's label: a nub pointing out of the bubble at a pill that
-        names the hovered action. The pill stays horizontal, never rotated."""
-        if alpha <= 0.03 or not text:
-            return
-        p.save()
-        p.setOpacity(p.opacity() * min(1.0, alpha))
-        accent = QColor(overlay_actions.COLORS.get("accent", "#00d4ff"))
-        ux, uy = math.cos(ang), math.sin(ang)
-
-        # the pill: a card with an accent ring and the action's name.
-        # Its nearest edge keeps a constant gap past the nub whatever the
-        # slice's angle: a horizontal pill centred on the ray hugs cardinal
-        # bubbles and swings far from diagonal ones, so the centre distance
-        # is solved so that the closest point of the rect sits at r + gap.
-        font = QFont("Sans", 10)
-        font.setWeight(QFont.Weight.DemiBold)
-        metrics = QFontMetrics(font)
-        elided = metrics.elidedText(text, Qt.TextElideMode.ElideRight, 170)
-        tw = metrics.horizontalAdvance(elided)
-        w = tw + 30.0
-        hgt = metrics.height() + 16.0
-        gap = 24.0
-        lo, hi = r + gap, r + gap + w + hgt
-        for _ in range(12):
-            mid = (lo + hi) / 2
-            px, py = bx + ux * mid, by + uy * mid
-            qx = max(px - w / 2, min(bx, px + w / 2))
-            qy = max(py - hgt / 2, min(by, py + hgt / 2))
-            if math.hypot(bx - qx, by - qy) < r + gap:
-                lo = mid
-            else:
-                hi = mid
-        d = (lo + hi) / 2
-        cxp = bx + ux * d
-        cyp = by + uy * d
-        rect = QRectF(cxp - w / 2, cyp - hgt / 2, w, hgt)
-
-        p.setBrush(QBrush(accent))
-        p.setPen(QPen(accent, 2))
-        p.drawRoundedRect(rect.adjusted(-2, -2, 2, 2), 9.0, 9.0)
-        card = QColor(overlay_actions.COLORS["surface1"])
-        card.setAlpha(248)
-        p.setBrush(QBrush(card))
-        brd = QColor(overlay_actions.COLORS["surface2"])
-        brd.setAlpha(170)
-        p.setPen(QPen(brd, 1))
-        p.drawRoundedRect(rect, 7.0, 7.0)
-        p.setFont(font)
-        p.setPen(QPen(QColor(overlay_actions.COLORS["text"])))
-        p.drawText(rect, Qt.AlignmentFlag.AlignCenter, elided)
-        p.restore()
 
     def _draw_slice_button(self, p, cx, cy, index, icon_radius, h):
         """Draw the icon style's slice button for slice `index` (Line and
@@ -1449,8 +1392,6 @@ class RadialMenuPaintingMixin:
                     p.drawPixmap(icon_rect.toRect(), icon)
                 else:
                     self._draw_icon(p, item_x, item_y, icon_name, bub_r * 0.7, fg)
-                if is_highlighted:
-                    self._bubble_label(p, item_x, item_y, item_angle, bub_r, item[0], 1.0)
                 p.restore()
                 continue
             if is_highlighted:
